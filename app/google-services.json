@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "148335402217",
+    "firebase_url": "https://btpfirebaseproject.firebaseio.com",
+    "project_id": "btpfirebaseproject",
+    "storage_bucket": "btpfirebaseproject.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148335402217:android:3a26527c70c7487d",
+        "android_client_info": {
+          "package_name": "com.example.veloxigami.btp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "148335402217-13gigv36k91vqprjmotkg1k4pacle198.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.veloxigami.btp",
+            "certificate_hash": "37349afd007236b2e62d6739c81abe7616ab9fa5"
+          }
+        },
+        {
+          "client_id": "148335402217-1m89emri3khbd8oe53qlkd0vfaqvvecr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDl2TwpxIRDmN4jQ0ddqQ4nFmEEOwg08Mk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "148335402217-1m89emri3khbd8oe53qlkd0vfaqvvecr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
