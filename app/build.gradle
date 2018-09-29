@@ -30,6 +30,7 @@ dependencies {
     compile 'com.google.code.gson:gson:2.7'
     compile 'com.jaredrummler:android-processes:1.1.1'
     compile 'com.facebook.network.connectionclass:connectionclass:1.0.1'
+    compile 'org.tensorflow:tensorflow-android:+'
 }
 
 

@@ -16,6 +16,16 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import weka.classifiers.Classifier;
+import weka.classifiers.functions.MultilayerPerceptron;
+import weka.core.DenseInstance;
+import weka.core.Instance;
+import weka.core.Instances;
+import weka.core.Attribute;
+import weka.core.FastVector;
+import weka.classifiers.trees.RandomForest;
+import weka.core.SerializationHelper;
+
 import com.android.volley.AuthFailureError;
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
@@ -29,7 +39,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.jaredrummler.android.processes.AndroidProcesses;
 import com.jaredrummler.android.processes.models.AndroidAppProcess;
 
+import org.w3c.dom.Attr;
+
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -46,8 +59,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText dim;
 
     private double matrix1[][], matrix2[][];
-    private String server_url = "http://52.15.113.236:5000/data";
-    private long serverSendTime;
+    private String server_url = "http://192.168.43.127:5000/data";
+    private long serverSendTime, offlineStartTime;
     private long numOfProc;
     private double freeRAM;
     private long netLatency;
@@ -69,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
     private int biggerCount;
     private static int OFFLINE = 0;
     private static int OFFLOAD = 1;
+    private MultilayerPerceptron rf;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,8 +101,19 @@ public class MainActivity extends AppCompatActivity {
         offlineTime = 0;
         offloadTime = 0;
 
+        try {
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         databaseReference = FirebaseDatabase.getInstance().getReference();
-        registerNextOpBroadcastReceiver();
+        registerOfflineReceiver();
+        registerVolleyTask();
+        registerAsyncReceiver();
+
+
+
 
         compute.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -100,93 +125,89 @@ public class MainActivity extends AppCompatActivity {
                 biggerCount = 0;
 
 
-               // new NetworkLatency().execute();
+                new NetworkLatency().execute();
                 numOfProc = numberOfProcesses();
                 freeRAM = getFreeRAM();
                 totalRAM = getTotalRam();
                 taskSize = Integer.parseInt(dim.getText().toString());
 
-                serverSendTime = System.currentTimeMillis();
-                volleyTask();
 
-                Thread thread = new Thread() {
-                    @Override
-                    public void run() {
-                            offline = offlineTask(taskSize);
+                System.out.println();
+
+                try{
+                    int NUMBER_OF_ATTRIBS = 6;
+                    int NUMBER_OF_INSTANCES = 1;
+                    Attribute attrib1 = new Attribute("batteryLevel");
+                    Attribute attrib2 = new Attribute("numberOfProcesses");
+                    Attribute classAttrib = new Attribute("option");
+                    Attribute attrib4 = new Attribute("sizeOfTask");
+                    Attribute attrib5 = new Attribute("totalRAM");
+                    Attribute attrib6 = new Attribute("usageRAM");
+
+                    FastVector wekaAttributes = new FastVector(NUMBER_OF_ATTRIBS);
+                    wekaAttributes.addElement(attrib1);
+                    wekaAttributes.addElement(attrib2);
+                    wekaAttributes.addElement(classAttrib);
+                    wekaAttributes.addElement(attrib4);
+                    wekaAttributes.addElement(attrib5);
+                    wekaAttributes.addElement(attrib6);
+
+                    Instances trainingSet = new Instances("Rel",wekaAttributes,NUMBER_OF_INSTANCES);
+                    trainingSet.setClassIndex(2);
+
+                    Instance iExample = new DenseInstance(6);
+                    iExample.setValue(attrib1,batteryLevel);
+                    iExample.setValue(attrib2,numOfProc);
+                    iExample.setValue(attrib4,taskSize);
+                    iExample.setValue(attrib5, totalRAM);
+                    iExample.setValue(attrib6, freeRAM);
+
+                    trainingSet.add(iExample);
+                    rf = (MultilayerPerceptron) weka.core.SerializationHelper.read(getAssets().open("mlp.model"));
+                    double predicted = rf.classifyInstance(trainingSet.instance(0));
+                    optionSelect = (int) predicted;
+                    Log.v("Model Working: ","" + optionSelect);
+                    if(optionSelect == 1){
+                        volleyTask();
                     }
-                };
+                    else
+                        offlineTask(taskSize);
 
-                thread.start();
-
-
-                while (true) {
-                    if(offload && offline)
-                        break;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
-                //while(!asyncDone);
 
-                if (offloadTime >= offlineTime) {
-                    optionSelect = OFFLINE;
-                    timeInvested = offlineTime;
-                    Log.v("dasdsa", " offline");
-                } else if(offloadTime < offlineTime) {
-                    optionSelect = OFFLOAD;
-                    timeInvested = offloadTime;
-                    Log.v("sadas", " offload");
-                }
 
-                x = new OutputObject(taskSize,
-                        numOfProc, timeInvested, freeRAM, totalRAM,
-                        batteryLevel, optionSelect);
+//                serverSendTime = System.currentTimeMillis();
 
-                sendDataToFirebase(x);
-                count++;
-                if (count <= 1000){
-                    Intent intentx = new Intent("com.veloxigami.btp.nextop");
-                    sendBroadcast(intentx);
-                    Log.v("Sent", "Broadcast offline");
-                }
+
+               /* Intent intentx = new Intent("com.veloxigami.btp.offline");
+                sendBroadcast(intentx);
+                Log.v("Sent", "Broadcast offline");
+
+                //compute.setEnabled(false);*/
+
             }
         });
     }
 
 
 
-    private BroadcastReceiver nextOpReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver offlineReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.v("OP","Broadcast " + count + " received");
-            asyncDone = false;
-            offload = false;
-            offline = false;
-
-            dim.setText(""+(Integer.parseInt(dim.getText().toString())+1));
-
-            numOfProc = numberOfProcesses();
-            freeRAM = getFreeRAM();
-            totalRAM = getTotalRam();
             taskSize = Integer.parseInt(dim.getText().toString());
 
-            serverSendTime = System.currentTimeMillis();
-            volleyTask();
-
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
-                    offline = offlineTask(taskSize);
-                }
-            };
-
-            thread.start();
+            offlineStartTime = System.currentTimeMillis();
 
 
-            while (true) {
-                if(offload && offline)
-                    break;
-            }
+            offlineTask(taskSize);
 
-            //while(!asyncDone);
+
 
             if (offloadTime >= offlineTime) {
                 optionSelect = OFFLINE;
@@ -198,38 +219,114 @@ public class MainActivity extends AppCompatActivity {
                 Log.v("sadas", " offload");
             }
 
+            /*while(true){
+            if(asyncDone){
+                break;
+            }}
+*/
             x = new OutputObject(taskSize,
-                    numOfProc, timeInvested, freeRAM, totalRAM,
+                    numOfProc, timeInvested, netLatency, freeRAM, totalRAM,
                     batteryLevel, optionSelect);
 
 
             x = new OutputObject(taskSize,
-                    numOfProc, timeInvested, freeRAM, totalRAM,
+                    numOfProc, timeInvested, netLatency, freeRAM, totalRAM,
                     batteryLevel, optionSelect);
 
             sendDataToFirebase(x);
             count++;
-            if (count <= 300) {
-                Intent intentx = new Intent("com.veloxigami.btp.nextop");
+           /* if (count <= 300) {
+                asyncDone = false;
+                offload = false;
+                offline = false;
+                Intent intentx = new Intent("com.veloxigami.btp.vt");
                 sendBroadcast(intentx);
-                Log.v("Sent", "Broadcast offline");
+                Log.v("Sent", "Broadcast online");
             } else if (count > 300 ){
                 if(biggerCount != 7){
                     biggerCount++;
                     count = 0;
                     dim.setText(""+1);
-                    Intent intentx = new Intent("com.veloxigami.btp.nextop");
+                    asyncDone = false;
+                    offload = false;
+                    offline = false;
+                    Intent intentx = new Intent("com.veloxigami.btp.vt");
                     sendBroadcast(intentx);
                 }
-                else
+                else {
                     count = 0;
-            }
+                    compute.setEnabled(true);
+                }
+            }*/
         }
     };
 
-    private void registerNextOpBroadcastReceiver(){
-        IntentFilter filter = new IntentFilter("com.veloxigami.btp.nextop");
-        registerReceiver(nextOpReceiver,filter);
+    private BroadcastReceiver volleyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, final Intent intent) {
+
+            dim.setText("" +(Integer.parseInt(dim.getText().toString()) + 1));
+            new NetworkLatency().execute();
+            numOfProc = numberOfProcesses();
+            freeRAM = getFreeRAM();
+            totalRAM = getTotalRam();
+            taskSize = Integer.parseInt(dim.getText().toString());
+
+            serverSendTime = System.currentTimeMillis();
+
+
+            final RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
+
+            StringRequest stringRequest = new StringRequest(Request.Method.POST, server_url,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            long serverResponseTime = System.currentTimeMillis();
+                            offloadTime = serverResponseTime - serverSendTime;
+                           /* Log.v("timestart",""+serverSendTime);
+                            Log.v("timeend",""+serverResponseTime);
+
+                            Log.v("offloadtime",offloadTime+"");*/
+                            turnAroundTime.setText(""+offloadTime+ " ms");
+                            offload = true;
+                            serverTime.setText(response + " s");
+                            requestQueue.stop();
+                            offline = false;
+                            Intent intentx = new Intent("com.veloxigami.btp.offline");
+                            sendBroadcast(intentx);
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    error.printStackTrace();
+                    turnAroundTime.setText("Error occurred");
+                    serverTime.setText("Error occurred");
+                    requestQueue.stop();
+                }
+            }){
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("size",""+taskSize);
+                    return params;
+                }
+            };
+            stringRequest.setRetryPolicy(new DefaultRetryPolicy(
+                    3000000,
+                    0,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+            requestQueue.add(stringRequest);
+        }
+    };
+
+    private void registerVolleyTask(){
+        IntentFilter filter = new IntentFilter("com.veloxigami.btp.vt");
+        registerReceiver(volleyReceiver, filter);
+    }
+
+    private void registerOfflineReceiver(){
+        IntentFilter filter = new IntentFilter("com.veloxigami.btp.offline");
+        registerReceiver(offlineReceiver,filter);
     }
 
     private double[][] matrixGenerator(int n){
@@ -332,16 +429,34 @@ public class MainActivity extends AppCompatActivity {
             Log.v("latency",timeDifference+"");
             netLatency = timeDifference;
             asyncDone = true;*/
-            inSomeWhere();
+            netLatency = inSomeWhere();
             return null;
 
         }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            Intent i = new Intent("com.veloxigami.btp.aync");
+            sendBroadcast(i);
+        }
+    }
+
+    private BroadcastReceiver asyncReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            asyncDone = true;
+        }
+    };
+
+    private void registerAsyncReceiver(){
+        IntentFilter ifilter = new IntentFilter("com.veloxigami.btp.async");
+        registerReceiver(asyncReceiver,ifilter);
     }
 
     private void volleyTask(){
 
-
-
+        serverSendTime = System.currentTimeMillis();
         final RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
 
         StringRequest stringRequest = new StringRequest(Request.Method.POST, server_url,
@@ -354,10 +469,13 @@ public class MainActivity extends AppCompatActivity {
                         Log.v("timeend",""+serverResponseTime);
 
                         Log.v("offloadtime",offloadTime+"");
-                        turnAroundTime.setText(""+offloadTime+ " ms");
-
-                        serverTime.setText(response + " s");
+                        turnAroundTime.setText("Server TAT: "+offloadTime+ " ms");
+                        serverTime.setText("Server ET: "+response + "s");
                         requestQueue.stop();
+                        offload = true;
+                        offline = false;
+                        /*Intent intentx = new Intent("com.veloxigami.btp.offline");
+                        sendBroadcast(intentx);*/
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -381,17 +499,19 @@ public class MainActivity extends AppCompatActivity {
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         requestQueue.add(stringRequest);
 
-        offload = true;
+
 
     }
 
-    private boolean offlineTask(int dimension){
+    private void offlineTask(int dimension){
+        offlineStartTime = System.currentTimeMillis();
         multiply(matrixGenerator(dimension),
                 matrixGenerator(dimension),
                 dimension);
-        offlineTime = System.currentTimeMillis() - serverSendTime;
+        offlineTime = System.currentTimeMillis() - offlineStartTime;
+        time.setText("Offline Time: " + offlineTime+"ms");
         Log.v("offlinetime",offlineTime+"");
-        return true;
+        return;
     }
 
     private void sendDataToFirebase(OutputObject x){
@@ -407,7 +527,7 @@ public class MainActivity extends AppCompatActivity {
     public static long inSomeWhere()
     {
         long start = System.currentTimeMillis();
-        String pingResult = getPingResult("52.15.113.236");
+        String pingResult = getPingResult("18.222.222.74");
         long latency = System.currentTimeMillis() - start;
         boolean isNetOk = true;
         if (pingResult == null) {
