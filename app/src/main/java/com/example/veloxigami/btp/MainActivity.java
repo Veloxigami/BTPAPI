@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText dim;
 
     private double matrix1[][], matrix2[][];
-    private String server_url = "http://192.168.43.127:5000/data";
+    private String server_url = "http://18.191.151.71:5000/data";
     private long serverSendTime, offlineStartTime;
     private long numOfProc;
     private double freeRAM;
@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean asyncDone;
     private long offloadTime;
     private long offlineTime;
+    private long timeOnServer;
     private int optionSelect;
     private double totalRAM;
     private int biggerCount;
@@ -134,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
                 System.out.println();
 
-                try{
+                /*try{
                     int NUMBER_OF_ATTRIBS = 6;
                     int NUMBER_OF_INSTANCES = 1;
                     Attribute attrib1 = new Attribute("batteryLevel");
@@ -168,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
                     optionSelect = (int) predicted;
                     Log.v("Model Working: ","" + optionSelect);
                     if(optionSelect == 1){
-                        volleyTask();
+
                     }
                     else
                         offlineTask(taskSize);
@@ -177,12 +178,12 @@ public class MainActivity extends AppCompatActivity {
                     e.printStackTrace();
                 } catch (Exception e) {
                     e.printStackTrace();
-                }
+                }*/
 
 
 
-//                serverSendTime = System.currentTimeMillis();
-
+                serverSendTime = System.currentTimeMillis();
+                volleyTask();
 
                /* Intent intentx = new Intent("com.veloxigami.btp.offline");
                 sendBroadcast(intentx);
@@ -224,26 +225,21 @@ public class MainActivity extends AppCompatActivity {
                 break;
             }}
 */
-            x = new OutputObject(taskSize,
-                    numOfProc, timeInvested, netLatency, freeRAM, totalRAM,
-                    batteryLevel, optionSelect);
-
-
-            x = new OutputObject(taskSize,
-                    numOfProc, timeInvested, netLatency, freeRAM, totalRAM,
-                    batteryLevel, optionSelect);
+            x = new OutputObject(taskSize,batteryLevel,
+                    numOfProc, offlineTime, offloadTime, netLatency, freeRAM, totalRAM,
+                    optionSelect);
 
             sendDataToFirebase(x);
             count++;
-           /* if (count <= 300) {
+            if (count <= 30) {
                 asyncDone = false;
                 offload = false;
                 offline = false;
                 Intent intentx = new Intent("com.veloxigami.btp.vt");
                 sendBroadcast(intentx);
                 Log.v("Sent", "Broadcast online");
-            } else if (count > 300 ){
-                if(biggerCount != 7){
+            } else if (count > 30 ){
+                if(biggerCount != 1){
                     biggerCount++;
                     count = 0;
                     dim.setText(""+1);
@@ -257,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
                     count = 0;
                     compute.setEnabled(true);
                 }
-            }*/
+            }
         }
     };
 
@@ -265,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, final Intent intent) {
 
-            dim.setText("" +(Integer.parseInt(dim.getText().toString()) + 1));
+            dim.setText("" +(Integer.parseInt(dim.getText().toString()) + 10));
             new NetworkLatency().execute();
             numOfProc = numberOfProcesses();
             freeRAM = getFreeRAM();
@@ -474,8 +470,8 @@ public class MainActivity extends AppCompatActivity {
                         requestQueue.stop();
                         offload = true;
                         offline = false;
-                        /*Intent intentx = new Intent("com.veloxigami.btp.offline");
-                        sendBroadcast(intentx);*/
+                        Intent intentx = new Intent("com.veloxigami.btp.offline");
+                        sendBroadcast(intentx);
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -527,7 +523,7 @@ public class MainActivity extends AppCompatActivity {
     public static long inSomeWhere()
     {
         long start = System.currentTimeMillis();
-        String pingResult = getPingResult("18.222.222.74");
+        String pingResult = getPingResult("18.191.151.71");
         long latency = System.currentTimeMillis() - start;
         boolean isNetOk = true;
         if (pingResult == null) {

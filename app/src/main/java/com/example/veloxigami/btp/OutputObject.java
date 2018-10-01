@@ -6,19 +6,45 @@ package com.example.veloxigami.btp;
 
 public class OutputObject {
     private int sizeOfTask, batteryLevel;
-    private long numberOfProcesses, timeInvested, networkLatency;
+    private long numberOfProcesses, offlineTime, offloadTime, timeOnServer, networkLatency;
     private double usageRAM, totalRAM;
     private int option;
 
-    public OutputObject(int sizeOfTask, long numberOfProcesses, long timeInvested, long networkLatency, double usageRAM, double totalRAM, int batteryLevel,int option) {
+    public OutputObject(int sizeOfTask, int batteryLevel, long numberOfProcesses, long offlineTime, long offloadTime, long networkLatency, double usageRAM, double totalRAM, int option) {
         this.sizeOfTask = sizeOfTask;
+        this.batteryLevel = batteryLevel;
         this.numberOfProcesses = numberOfProcesses;
-        this.timeInvested = timeInvested;
+        this.offlineTime = offlineTime;
+        this.offloadTime = offloadTime;
+        this.timeOnServer = timeOnServer;
         this.networkLatency = networkLatency;
         this.usageRAM = usageRAM;
         this.totalRAM = totalRAM;
-        this.batteryLevel = batteryLevel;
         this.option = option;
+    }
+
+    public long getOfflineTime() {
+        return offlineTime;
+    }
+
+    public void setOfflineTime(long offlineTime) {
+        this.offlineTime = offlineTime;
+    }
+
+    public long getOffloadTime() {
+        return offloadTime;
+    }
+
+    public void setOffloadTime(long offloadTime) {
+        this.offloadTime = offloadTime;
+    }
+
+    public long getTimeOnServer() {
+        return timeOnServer;
+    }
+
+    public void setTimeOnServer(long timeOnServer) {
+        this.timeOnServer = timeOnServer;
     }
 
     public int getSizeOfTask() {
@@ -35,14 +61,6 @@ public class OutputObject {
 
     public void setNumberOfProcesses(long numberOfProcesses) {
         this.numberOfProcesses = numberOfProcesses;
-    }
-
-    public long getTimeInvested() {
-        return timeInvested;
-    }
-
-    public void setTimeInvested(long timeInvested) {
-        this.timeInvested = timeInvested;
     }
 
     public long getNetworkLatency() {
